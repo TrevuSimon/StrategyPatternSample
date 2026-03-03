@@ -1,34 +1,64 @@
 # SalesPatternDemo
 
-API de vendas demonstrando padrões de projeto em .NET.
+API de vendas demonstrando o **Strategy Pattern** em .NET.
 
-## Padrões Utilizados
+## Strategy Pattern
 
-### Strategy Pattern
-Cada tipo de cliente (VIP, Interno, Cliente) tem sua própria regra de desconto. O sistema escolhe a estratégia correta em tempo de execução.
+Cada tipo de cliente possui sua própria regra de desconto, selecionada em tempo de execução.
+
+**Vantagens:**
+- Elimina `if/else` extensos — cada regra é uma classe
+- Fácil extensão — basta criar nova classe implementando `ISellRule`
+- Testável isoladamente
+
+### Estrutura
 
 ```
 ISellRule (interface)
-    ├── VipRule      → Descontos escalonados (15%-25%)
-    ├── InternRule   → 30% uma vez por mês
-    └── CustomerRule → Sem desconto
+    │
+    └── BaseSellRule (Template Method)
+            ├── VipRule      → 15-30% escalonado
+            ├── InternRule   → 30% uma vez/mês
+            └── CustomerRule → 0%
 ```
 
-### Template Method Pattern
-`BaseSellRule` define o esqueleto do algoritmo. Classes filhas sobrescrevem apenas os passos específicos.
+### Exemplo: VipRule
 
 ```csharp
-// BaseSellRule define a ordem:
-// 1. Validate() 
-// 2. CalculateDiscountAsync()
-// 3. OnAfterApplyAsync()
+public class VipRule : BaseSellRule
+{
+    protected override Task<decimal> CalculateDiscountAsync(SaleProcessingData data)
+    {
+        decimal discount = data.OriginalAmount switch
+        {
+            >= 1000 => 25m,
+            >= 500  => 20m,
+            _       => 15m
+        };
+        return Task.FromResult(discount);
+    }
+}
 ```
 
-### Repository Pattern
-Abstrai o acesso a dados. `ICustomerRepository` e `ISaleRepository` isolam a lógica de negócio do Entity Framework.
+### Seleção da Estratégia
 
-### Resolver/Factory Pattern
-`SellRuleResolver` seleciona qual regra aplicar baseado no tipo de cliente.
+```csharp
+// SellRuleResolver
+public ISellRule Resolve(CustomerType type) => type switch
+{
+    CustomerType.Vip    => _vipRule,
+    CustomerType.Intern => _internRule,
+    _                   => _customerRule
+};
+```
+
+## Outros Padrões
+
+| Padrão | Uso |
+|--------|-----|
+| Template Method | `BaseSellRule` define o algoritmo; filhas sobrescrevem passos |
+| Repository | Abstrai acesso a dados (EF Core) |
+| Resolver/Factory | Seleciona a estratégia por tipo de cliente |
 
 ## Estrutura
 
