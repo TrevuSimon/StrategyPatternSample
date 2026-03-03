@@ -22,11 +22,24 @@ ISellRule (interface)
             └── CustomerRule → 0%
 ```
 
-### Exemplo: VipRule
+### Implementação
 
+**1. Interface** — define o contrato:
+```csharp
+public interface ISellRule
+{
+    Task<SaleProcessingData> ApplyRuleAsync(SaleProcessingData data);
+    string RuleName { get; }
+}
+```
+
+**2. Estratégia concreta** — VipRule com desconto escalonado:
 ```csharp
 public class VipRule : BaseSellRule
 {
+    public override string RuleName => "VipRule";
+    protected override int DefaultMaxItems => 50;
+
     protected override Task<decimal> CalculateDiscountAsync(SaleProcessingData data)
     {
         decimal discount = data.OriginalAmount switch
@@ -35,22 +48,66 @@ public class VipRule : BaseSellRule
             >= 500  => 20m,
             _       => 15m
         };
+
+        if (data.ItemsCount >= 10)
+            discount += 5m;
+
         return Task.FromResult(discount);
     }
 }
 ```
 
-### Seleção da Estratégia
-
+**3. Resolver** — fábrica que retorna a estratégia correta:
 ```csharp
-// SellRuleResolver
-public ISellRule Resolve(CustomerType type) => type switch
+public class SellRuleResolver : ISellRuleResolver
 {
-    CustomerType.Vip    => _vipRule,
-    CustomerType.Intern => _internRule,
-    _                   => _customerRule
-};
+    private readonly ICustomerRepository _customerRepository;
+
+    public SellRuleResolver(ICustomerRepository customerRepository)
+    {
+        _customerRepository = customerRepository;
+    }
+
+    public ISellRule Resolve(CustomerType customerType) => customerType switch
+    {
+        CustomerType.Vip    => new VipRule(),
+        CustomerType.Intern => new InternRule(_customerRepository),
+        _                   => new CustomerRule()
+    };
+}
 ```
+
+**4. Strategy + Resolver juntos** — o Service usa o Resolver para obter a estratégia e aplicá-la:
+```csharp
+public class SellService : ISellService
+{
+    private readonly ISellRuleResolver _ruleResolver;
+    // ...
+
+    public async Task<SaleResponseDto> ProcessSaleAsync(SaleRequestDto request)
+    {
+        var customer = await _customerRepository.GetByIdAsync(request.CustomerId);
+        
+        var data = new SaleProcessingData
+        {
+            Customer = customer,
+            OriginalAmount = request.Amount,
+            ItemsCount = request.ItemsCount
+        };
+
+        // 1. Resolver seleciona a estratégia baseada no tipo
+        ISellRule rule = _ruleResolver.Resolve(request.CustomerType);
+        
+        // 2. Estratégia é aplicada (polimorfismo)
+        data = await rule.ApplyRuleAsync(data);
+
+        // O Service não sabe qual regra foi usada — apenas que funcionou
+        // ...
+    }
+}
+```
+
+> O Service depende apenas de `ISellRuleResolver` e `ISellRule`. Adicionar um novo tipo de cliente (ex: `StudentRule`) não requer alterações no Service — apenas criar a nova classe e registrar no Resolver.
 
 ## Outros Padrões
 
