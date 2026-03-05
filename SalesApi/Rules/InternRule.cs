@@ -7,7 +7,8 @@ public class InternRule : BaseSellRule
 {
     private readonly ICustomerRepository _customerRepository;
 
-    public InternRule(ICustomerRepository customerRepository)
+    public InternRule(ICustomerRepository customerRepository, ISellProductRule productRule) 
+        : base(productRule)
     {
         _customerRepository = customerRepository;
     }

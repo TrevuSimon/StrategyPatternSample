@@ -4,6 +4,13 @@ namespace SalesApi.Rules;
 
 public abstract class BaseSellRule : ISellRule
 {
+    protected readonly ISellProductRule _productRule;
+
+    protected BaseSellRule(ISellProductRule productRule)
+    {
+        _productRule = productRule;
+    }
+
     protected virtual int DefaultMaxItems => 10;
     protected virtual decimal DefaultDiscountPercentage => 0m;
 
@@ -11,10 +18,14 @@ public abstract class BaseSellRule : ISellRule
 
     public virtual async Task<SaleProcessingData> ApplyRuleAsync(SaleProcessingData data)
     {
-        // Validate
+        // Validate sale
         if (!Validate(data)) return data;
 
-        // Calculate discount
+        // Apply product rules first
+        await ApplyProductRulesAsync(data);
+        if (!data.IsValid) return data;
+
+        // Calculate sale discount
         data.DiscountPercentage = await CalculateDiscountAsync(data);
         data.MaxItemsAllowed = DefaultMaxItems;
         data.FinalAmount = data.OriginalAmount - (data.OriginalAmount * data.DiscountPercentage / 100);
@@ -24,6 +35,21 @@ public abstract class BaseSellRule : ISellRule
         await OnAfterApplyAsync(data);
 
         return data;
+    }
+
+    protected virtual async Task ApplyProductRulesAsync(SaleProcessingData data)
+    {
+        foreach (var product in data.Products)
+        {
+            await _productRule.ApplyRuleAsync(product);
+
+            if (!product.IsValid)
+            {
+                data.IsValid = false;
+                data.ValidationError = $"Product '{product.ProductName}': {product.ValidationError}";
+                return;
+            }
+        }
     }
 
     protected virtual bool Validate(SaleProcessingData data)

@@ -4,6 +4,8 @@ namespace SalesApi.Rules;
 
 public class VipRule : BaseSellRule
 {
+    public VipRule(ISellProductRule productRule) : base(productRule) { }
+
     public override string RuleName => "VipRule";
     protected override int DefaultMaxItems => 50;
     protected override decimal DefaultDiscountPercentage => 15m;

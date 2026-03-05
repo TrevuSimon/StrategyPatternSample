@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SalesApi.Data;
 using SalesApi.Resolvers;
 using SalesApi.Repositories;
+using SalesApi.Rules;
 using SalesApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +18,7 @@ builder.Services.AddDbContext<SalesDbContext>(options =>
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<ISaleRepository, SaleRepository>();
 builder.Services.AddScoped<ISellService, SellService>();
+builder.Services.AddScoped<ISellProductRule, SellProductRule>();
 builder.Services.AddScoped<ISellRuleResolver, SellRuleResolver>();
 
 var app = builder.Build();

@@ -13,4 +13,5 @@ public class SaleProcessingData
     public bool IsValid { get; set; } = true;
     public string? ValidationError { get; set; }
     public string RuleApplied { get; set; } = string.Empty;
+    public List<ProductProcessingData> Products { get; set; } = new();
 }
